@@ -12,7 +12,18 @@ fn main() -> std::io::Result<()> {
     println!("First: {:?}", first_result);
 
     // second
-    // println!("Second: {:?}", second_result);
+    'outer: for noun in 0..99 {
+        for verb in 0..99 {
+            let mut ops_day2 = input.to_vec();
+            replace_pos1and2(&mut ops_day2, noun, verb);
+            let second_result = execute(&mut ops_day2);
+            // println!("noun: {:?}, verb: {:?}", noun, verb);
+            if second_result == 19690720 {
+                println!("Second: {:?}", 100 * noun + verb);
+                break 'outer;
+            }
+        }
+    }
     Ok(())
 }
 
