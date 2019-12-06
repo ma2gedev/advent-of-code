@@ -9,11 +9,28 @@ struct Point {
 #[derive(Default, Debug)]
 struct Path {
     direction: String,
+    len: i32,
     point1: Point,
     point2: Point
 }
 
 impl Path {
+    fn step_to_point(&self, point: &Point) -> i32 {
+        match self.direction.as_ref() {
+            "R" => point.x - self.point1.x,
+            "L" => self.point1.x - point.x,
+            "U" => point.y - self.point1.y,
+            "D" => self.point1.y - point.y,
+            _ => panic!("do not reach"),
+        }
+    }
+    fn include_point(&self, point: &Point) -> bool {
+        match self.direction.as_ref() {
+            "R" | "L" => self.in_range_x(point.x) && self.point1.y == point.y,
+            "U" | "D" => self.in_range_y(point.y) && self.point1.x == point.x,
+            _ => panic!("do not reach"),
+        }
+    }
     fn in_range_x(&self, x: i32) -> bool {
         if self.point1.x < self.point2.x {
             self.point1.x < x && x < self.point2.x
@@ -80,6 +97,7 @@ fn main() -> std::io::Result<()> {
             };
             paths.push(Path {
                 direction: direction.to_string(),
+                len: *len,
                 point1: last_point,
                 point2: next_point,
             });
@@ -104,7 +122,24 @@ fn main() -> std::io::Result<()> {
     // first
     println!("First: {:?}", min_distance);
 
+    let each_steps:Vec<i32> = results.iter().map(|cross_point| {
+        wire_paths.iter().fold(0, |acc, wire_path| {
+            let mut wire_steps = 0;
+            for path in wire_path.iter() {
+                if path.include_point(cross_point) {
+                    wire_steps += path.step_to_point(cross_point);
+                    break;
+                } else {
+                    wire_steps += path.len;
+                }
+            }
+            acc + wire_steps
+        })
+    }).collect();
+    let min_steps = each_steps.iter().min();
+
     // second
+    println!("Second: {:?}", min_steps);
 
     Ok(())
 }
