@@ -2,7 +2,7 @@ use std::fs;
 
 fn candidate(val: i32) -> bool {
     let mut rest:i32 = val;
-    let mut prev:i32 = 200000;
+    let mut prev:i32 = i32::max_value();
     let mut adjacent:bool = false;
 
     while rest > 0 {
