@@ -1,4 +1,5 @@
 use std::fs;
+use std::io;
 
 fn main() -> std::io::Result<()> {
     let input: Vec<i32> = fs::read_to_string("../resources/input.txt")?
@@ -6,60 +7,99 @@ fn main() -> std::io::Result<()> {
 
     // first
     let mut ops = input.to_vec();
-    replace_pos1and2(&mut ops, 12, 2);
-    let first_result = execute(&mut ops);
-
-    println!("First: {:?}", first_result);
+    execute(&mut ops);
 
     // second
-    'outer: for noun in 0..99 {
-        for verb in 0..99 {
-            let mut ops_day2 = input.to_vec();
-            replace_pos1and2(&mut ops_day2, noun, verb);
-            let second_result = execute(&mut ops_day2);
-            // println!("noun: {:?}, verb: {:?}", noun, verb);
-            if second_result == 19690720 {
-                println!("Second: {:?}", 100 * noun + verb);
-                break 'outer;
-            }
-        }
-    }
     Ok(())
 }
 
-fn replace_pos1and2(input: &mut Vec<i32>, pos1: i32, pos2: i32) -> () {
-    input[1] = pos1;
-    input[2] = pos2;
+fn operations(ops: i32) -> (i32, i32, i32, i32) {
+    let op = ops % 100;
+    let mut mode = ops / 100;
+    let mode1 = mode % 10;
+    mode = mode / 10;
+    let mode2 = mode % 10;
+    mode = mode / 10;
+    let mode3 = mode % 10;
+
+    (mode3, mode2, mode1, op)
 }
 
-fn execute(ops: &mut Vec<i32>) -> i32 {
-    let mut pc: i32 = 0;
+fn from_input() -> i32 {
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap();
+    input.trim().parse::<i32>().unwrap()
+}
+
+fn output(value: i32) -> () {
+    println!("{:?}", value)
+}
+
+fn read_value(ops: &Vec<i32>, index: usize, mode: i32) -> i32 {
+    // println!("mode: {:?}", mode);
+    match mode {
+        0 => ops[ops[index] as usize],
+        1 => ops[index],
+        _ => panic!("do not reach"),
+    }
+}
+
+fn execute(ops: &mut Vec<i32>) {
     let mut op: i32 = -1; // dummy
     let mut arg1: i32 = 0;
     let mut arg2: i32 = 0;
+    let mut operation_step: i32 = 0;
+    let mut mode1 = 0;
+    let mut mode2 = 0;
+    let mut mode3 = 0; // maybe unnecessary
 
     for i in 0..ops.len() {
-        match pc % 4 {
-            0 => match ops[i] {
-                99 => break,
-                o => op = o
+        match operation_step {
+            0 => match operations(ops[i]) {
+                (_, _, _, 99) => break,
+                (parameter_mode3, parameter_mode2, parameter_mode1, o) => {
+                    mode1 = parameter_mode1;
+                    mode2 = parameter_mode2;
+                    mode3 = parameter_mode3;
+                    op = o;
+                },
             },
-            1 => arg1 = ops[ops[i] as usize],
-            2 => arg2 = ops[ops[i] as usize],
+            1 => match op {
+                1 | 2 => arg1 = read_value(ops, i, mode1),
+                3 => {
+                    let output = ops[i] as usize;
+                    ops[output] = from_input();
+                    operation_step = 0;
+                    continue;
+                },
+                4 => {
+                    output(ops[ops[i] as usize]);
+                    operation_step = 0;
+                    continue;
+                },
+                _ => panic!("do not reach"),
+            },
+            2 => arg2 = read_value(ops, i, mode2),
             3 => {
                 let output = ops[i] as usize;
                 ops[output] = if op == 1 {
                     arg1 + arg2
                 } else {
                     arg1 * arg2
-                }
+                };
+                operation_step = 0;
+                continue;
             },
             _ => panic!("do not reach")
         }
-        pc += 1;
-        // println!("{:?}", ops[i]);
+        operation_step += 1;
+        //println!("op: {:?}, step: {:?}, mode1: {:?}, mode2: {:?}, mode3: {:?}, arg1: {:?}, arg2: {:?}", op, operation_step, mode1, mode2, mode3, arg1, arg2);
     }
+}
 
-    // println!("{:?}", ops);
-    ops[0]
+#[test]
+fn test_operations() {
+    assert_eq!(operations(3), (0, 0, 0, 3));
+    assert_eq!(operations(10003), (1, 0, 0, 3));
+    assert_eq!(operations(01104), (0, 1, 1, 4));
 }
