@@ -45,6 +45,7 @@ fn read_value(ops: &Vec<i32>, index: usize, mode: i32) -> i32 {
 }
 
 fn execute(ops: &mut Vec<i32>) {
+    let mut pc = 0;
     let mut op = -1; // dummy
     let mut arg1 = 0;
     let mut arg2 = 0;
@@ -54,13 +55,13 @@ fn execute(ops: &mut Vec<i32>) {
     let mut mode2 = 0;
     let mut _mode3 = 0; // maybe unnecessary
 
-    for i in 0..ops.len() {
+    loop {
         if done_operation {
             operation_step = 0;
             done_operation = false;
         }
         match operation_step {
-            0 => match operations(ops[i]) {
+            0 => match operations(ops[pc]) {
                 (_, _, _, 99) => break,
                 (parameter_mode3, parameter_mode2, parameter_mode1, o) => {
                     mode1 = parameter_mode1;
@@ -70,21 +71,21 @@ fn execute(ops: &mut Vec<i32>) {
                 },
             },
             1 => match op {
-                1 | 2 => arg1 = read_value(ops, i, mode1),
+                1 | 2 => arg1 = read_value(ops, pc, mode1),
                 3 => {
-                    let output = ops[i] as usize;
+                    let output = ops[pc] as usize;
                     ops[output] = from_input();
                     done_operation = true;
                 },
                 4 => {
-                    output(ops[ops[i] as usize]);
+                    output(ops[ops[pc] as usize]);
                     done_operation = true;
                 },
                 _ => panic!("do not reach"),
             },
-            2 => arg2 = read_value(ops, i, mode2),
+            2 => arg2 = read_value(ops, pc, mode2),
             3 => {
-                let output = ops[i] as usize;
+                let output = ops[pc] as usize;
                 ops[output] = if op == 1 {
                     arg1 + arg2
                 } else {
@@ -95,6 +96,7 @@ fn execute(ops: &mut Vec<i32>) {
             _ => panic!("do not reach")
         }
         operation_step += 1;
+        pc += 1;
         //println!("op: {:?}, step: {:?}, mode1: {:?}, mode2: {:?}, mode3: {:?}, arg1: {:?}, arg2: {:?}", op, operation_step, mode1, mode2, mode3, arg1, arg2);
     }
 }
