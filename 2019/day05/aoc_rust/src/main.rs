@@ -58,6 +58,8 @@ fn execute(ops: &mut Vec<i32>) {
     loop {
         if done_operation {
             operation_step = 0;
+            arg1 = 0;
+            arg2 = 0;
             done_operation = false;
         }
         match operation_step {
@@ -71,7 +73,7 @@ fn execute(ops: &mut Vec<i32>) {
                 },
             },
             1 => match op {
-                1 | 2 => arg1 = read_value(ops, pc, mode1),
+                1 | 2 | 5 | 6 | 7 | 8 => arg1 = read_value(ops, pc, mode1),
                 3 => {
                     let output = ops[pc] as usize;
                     ops[output] = from_input();
@@ -83,13 +85,34 @@ fn execute(ops: &mut Vec<i32>) {
                 },
                 _ => panic!("do not reach"),
             },
-            2 => arg2 = read_value(ops, pc, mode2),
+            2 => {
+                arg2 = read_value(ops, pc, mode2);
+                match op {
+                    5 => {
+                        done_operation = true;
+                        if arg1 != 0 {
+                            pc = arg2 as usize;
+                            continue;
+                        }
+                    },
+                    6 => {
+                        done_operation = true;
+                        if arg1 == 0 {
+                            pc = arg2 as usize;
+                            continue;
+                        }
+                    },
+                    _ => (), // do nothing
+                }
+            },
             3 => {
                 let output = ops[pc] as usize;
-                ops[output] = if op == 1 {
-                    arg1 + arg2
-                } else {
-                    arg1 * arg2
+                ops[output] = match op {
+                    1 => { arg1 + arg2 },
+                    2 => { arg1 * arg2 },
+                    7 => { if arg1 < arg2 { 1 } else { 0 } },
+                    8 => { if arg1 == arg2 { 1 } else { 0 } },
+                    _ => panic!("do not reach"),
                 };
                 done_operation = true;
             },
@@ -97,7 +120,7 @@ fn execute(ops: &mut Vec<i32>) {
         }
         operation_step += 1;
         pc += 1;
-        //println!("op: {:?}, step: {:?}, mode1: {:?}, mode2: {:?}, mode3: {:?}, arg1: {:?}, arg2: {:?}", op, operation_step, mode1, mode2, mode3, arg1, arg2);
+        //println!("pc: {:?}, op: {:?}, step: {:?}, mode1: {:?}, mode2: {:?}, mode3: {:?}, arg1: {:?}, arg2: {:?}", pc, op, operation_step, mode1, mode2, _mode3, arg1, arg2);
     }
 }
 
@@ -106,4 +129,10 @@ fn test_operations() {
     assert_eq!(operations(3), (0, 0, 0, 3));
     assert_eq!(operations(10003), (1, 0, 0, 3));
     assert_eq!(operations(01104), (0, 1, 1, 4));
+}
+
+#[test]
+fn test_execute() {
+    let mut input: Vec<i32> = vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9];
+    execute(&mut input);
 }
