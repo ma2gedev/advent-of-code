@@ -45,10 +45,10 @@ fn read_value(ops: &Vec<i32>, index: usize, mode: i32) -> i32 {
 }
 
 fn execute(ops: &mut Vec<i32>) {
-    let mut op: i32 = -1; // dummy
-    let mut arg1: i32 = 0;
-    let mut arg2: i32 = 0;
-    let mut operation_step: i32 = 0;
+    let mut op = -1; // dummy
+    let mut arg1 = 0;
+    let mut arg2 = 0;
+    let mut operation_step = 0;
     let mut done_operation = false;
     let mut mode1 = 0;
     let mut mode2 = 0;
