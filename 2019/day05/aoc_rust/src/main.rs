@@ -49,18 +49,23 @@ fn execute(ops: &mut Vec<i32>) {
     let mut arg1: i32 = 0;
     let mut arg2: i32 = 0;
     let mut operation_step: i32 = 0;
+    let mut done_operation = false;
     let mut mode1 = 0;
     let mut mode2 = 0;
-    let mut mode3 = 0; // maybe unnecessary
+    let mut _mode3 = 0; // maybe unnecessary
 
     for i in 0..ops.len() {
+        if done_operation {
+            operation_step = 0;
+            done_operation = false;
+        }
         match operation_step {
             0 => match operations(ops[i]) {
                 (_, _, _, 99) => break,
                 (parameter_mode3, parameter_mode2, parameter_mode1, o) => {
                     mode1 = parameter_mode1;
                     mode2 = parameter_mode2;
-                    mode3 = parameter_mode3;
+                    _mode3 = parameter_mode3;
                     op = o;
                 },
             },
@@ -69,13 +74,11 @@ fn execute(ops: &mut Vec<i32>) {
                 3 => {
                     let output = ops[i] as usize;
                     ops[output] = from_input();
-                    operation_step = 0;
-                    continue;
+                    done_operation = true;
                 },
                 4 => {
                     output(ops[ops[i] as usize]);
-                    operation_step = 0;
-                    continue;
+                    done_operation = true;
                 },
                 _ => panic!("do not reach"),
             },
@@ -87,8 +90,7 @@ fn execute(ops: &mut Vec<i32>) {
                 } else {
                     arg1 * arg2
                 };
-                operation_step = 0;
-                continue;
+                done_operation = true;
             },
             _ => panic!("do not reach")
         }
