@@ -6,13 +6,20 @@ fn main() -> std::io::Result<()> {
         .trim().split(',').map(|op| op.parse().unwrap()).collect();
 
     // first
-    let mut ops = input.to_vec();
-    let mut next_input = 0;
-    for phase in vec![3, 1, 2, 4, 0] {
-        let mut inputs = vec![phase, next_input];
-        next_input = execute(&mut ops, &mut inputs);
+    let combinations = combination(&vec![0, 1, 2, 3, 4]);
+    let mut max_output = -1;
+    for combi in combinations {
+        let mut next_input = 0;
+        for phase in combi {
+            let mut ops = input.to_vec();
+            let mut inputs = vec![phase, next_input];
+            next_input = execute(&mut ops, &mut inputs);
+        }
+        if max_output < next_input {
+            max_output = next_input;
+        }
     }
-    println!("{:?}", next_input);
+    println!("max_output: {:?}", max_output);
 
     Ok(())
 }
@@ -133,6 +140,42 @@ fn execute(ops: &mut Vec<i32>, inputs: &mut Vec<i32>) -> i32 {
         //println!("pc: {:?}, op: {:?}, step: {:?}, mode1: {:?}, mode2: {:?}, mode3: {:?}, arg1: {:?}, arg2: {:?}", pc, op, operation_step, mode1, mode2, _mode3, arg1, arg2);
     }
     calculation_result
+}
+
+fn combination(elements: &Vec<i32>) -> Vec<Vec<i32>> {
+    let mut combinations = vec![];
+    let mut i = 0;
+    if elements.len() == 1 {
+        return vec![elements.clone()];
+    }
+    for element in elements {
+        let mut tmp_elements = elements.clone();
+        tmp_elements.remove(i);
+        println!("{:?}", tmp_elements);
+        for mut right in combination(&tmp_elements) {
+            right.insert(0, *element);
+            combinations.push(right);
+        }
+        i += 1;
+    }
+    combinations
+}
+
+#[test]
+fn test_combination() {
+    let mut elements = vec![1, 2];
+    let combination1 = combination(&elements);
+    assert_eq!(combination1[0], vec![1, 2]);
+    assert_eq!(combination1[1], vec![2, 1]);
+
+    elements = vec![1, 2, 3];
+    let combination2 = combination(&elements);
+    assert_eq!(combination2[0], vec![1, 2, 3]);
+    assert_eq!(combination2[1], vec![1, 3, 2]);
+    assert_eq!(combination2[2], vec![2, 1, 3]);
+    assert_eq!(combination2[3], vec![2, 3, 1]);
+    assert_eq!(combination2[4], vec![3, 1, 2]);
+    assert_eq!(combination2[5], vec![3, 2, 1]);
 }
 
 #[test]
