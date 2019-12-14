@@ -1,5 +1,6 @@
+use std::collections::HashMap;
 
-fn operations(ops: i32) -> (i32, i32, i32, i32) {
+fn operations(ops: i64) -> (i64, i64, i64, i64) {
     let op = ops % 100;
     let mut mode = ops / 100;
     let mode1 = mode % 10;
@@ -11,7 +12,7 @@ fn operations(ops: i32) -> (i32, i32, i32, i32) {
     (mode3, mode2, mode1, op)
 }
 
-fn from_input(inputs: &mut Vec<i32>) -> Option<i32> {
+fn from_input(inputs: &mut Vec<i64>) -> Option<i64> {
     if inputs.len() > 0 {
         Some(inputs.remove(0))
     } else {
@@ -19,20 +20,53 @@ fn from_input(inputs: &mut Vec<i32>) -> Option<i32> {
         // from stdio for manual test
         // let mut input = String::new();
         // io::stdin().read_line(&mut input).unwrap();
-        // Some(input.trim().parse::<i32>().unwrap())
+        // Some(input.trim().parse::<i64>().unwrap())
     }
 }
 
-fn output_to_memory(outputs: &mut Vec<i32>, value: i32) -> () {
+fn output_to_memory(outputs: &mut Vec<i64>, value: i64) -> () {
     outputs.push(value)
 }
 
-fn read_value(ops: &Vec<i32>, index: usize, mode: i32) -> i32 {
-    // println!("mode: {:?}", mode);
+fn read_value(ops: &Vec<i64>, extra_memory: &mut HashMap<i64, i64>, index: usize, relative_base: i64, mode: i64) -> i64 {
     match mode {
-        0 => ops[ops[index] as usize],
+        0 => {
+            let i = read_memory(ops, extra_memory, index) as usize;
+            read_memory(ops, extra_memory, i)
+        },
         1 => ops[index],
+        2 => {
+            let i = (relative_base + read_memory(ops, extra_memory, index)) as usize;
+            read_memory(ops, extra_memory, i)
+        },
         _ => panic!("do not reach"),
+    }
+}
+
+fn output_index(index: usize, relative_base: i64, mode: i64) -> usize {
+    if mode == 2 {
+        index + relative_base as usize
+    } else {
+        index
+    }
+}
+
+fn read_memory(ops: &Vec<i64>, extra_memory: &mut HashMap<i64, i64>, index: usize) -> i64 {
+    if index < ops.len() {
+        ops[index]
+    } else {
+        match extra_memory.get(&(index as i64)) {
+            Some(o) => *o,
+            None => 0,
+        }
+    }
+}
+
+fn write_memory(ops: &mut Vec<i64>, extra_memory: &mut HashMap<i64, i64>, index: usize, value: i64) {
+    if index < ops.len() {
+        ops[index] = value;
+    } else {
+        extra_memory.insert(index as i64, value);
     }
 }
 
@@ -43,8 +77,9 @@ pub enum IntcodeState {
     Suspend,
 }
 
-pub fn execute(ops: &mut Vec<i32>, inputs: &mut Vec<i32>, outputs: &mut Vec<i32>, pc: usize) -> (usize, IntcodeState) {
+pub fn execute(ops: &mut Vec<i64>, inputs: &mut Vec<i64>, outputs: &mut Vec<i64>, pc: usize, relative_base: i64, extra_memory: &mut HashMap<i64, i64>) -> (usize, IntcodeState, i64) {
     let mut pc = pc;
+    let mut relative_base = relative_base;
     let mut op = -1; // dummy
     let mut arg1 = 0;
     let mut arg2 = 0;
@@ -63,7 +98,7 @@ pub fn execute(ops: &mut Vec<i32>, inputs: &mut Vec<i32>, outputs: &mut Vec<i32>
             done_operation = false;
         }
         match operation_step {
-            0 => match operations(ops[pc]) {
+            0 => match operations(read_memory(ops, extra_memory, pc)) {
                 (_, _, _, 99) => break _calculation_result = IntcodeState::Halt,
                 (parameter_mode3, parameter_mode2, parameter_mode1, o) => {
                     mode1 = parameter_mode1;
@@ -73,23 +108,28 @@ pub fn execute(ops: &mut Vec<i32>, inputs: &mut Vec<i32>, outputs: &mut Vec<i32>
                 },
             },
             1 => match op {
-                1 | 2 | 5 | 6 | 7 | 8 => arg1 = read_value(ops, pc, mode1),
+                1 | 2 | 5 | 6 | 7 | 8 => arg1 = read_value(ops, extra_memory, pc, relative_base, mode1),
                 3 => {
-                    let output = ops[pc] as usize;
+                    let output = read_memory(ops, extra_memory, output_index(pc, relative_base, mode1)) as usize;
                     match from_input(inputs) {
-                        Some(o) => ops[output] = o,
+                        Some(o) => write_memory(ops, extra_memory, output, o),
                         None => break _calculation_result = IntcodeState::Suspend,
                     }
                     done_operation = true;
                 },
                 4 => {
-                    output_to_memory(outputs, ops[ops[pc] as usize]);
+                    let output = read_memory(ops, extra_memory, output_index(pc, relative_base, mode1)) as usize;
+                    output_to_memory(outputs, read_memory(ops, extra_memory, output));
                     done_operation = true;
                 },
+                9 => {
+                    relative_base += read_memory(ops, extra_memory, pc);
+                    done_operation = true;
+                }
                 _ => panic!("do not reach"),
             },
             2 => {
-                arg2 = read_value(ops, pc, mode2);
+                arg2 = read_value(ops, extra_memory, pc, relative_base, mode2);
                 match op {
                     5 => {
                         done_operation = true;
@@ -109,26 +149,27 @@ pub fn execute(ops: &mut Vec<i32>, inputs: &mut Vec<i32>, outputs: &mut Vec<i32>
                 }
             },
             3 => {
-                let output = ops[pc] as usize;
-                ops[output] = match op {
+                let output = read_memory(ops, extra_memory, pc) as usize;
+                let res = match op {
                     1 => { arg1 + arg2 },
                     2 => { arg1 * arg2 },
                     7 => { if arg1 < arg2 { 1 } else { 0 } },
                     8 => { if arg1 == arg2 { 1 } else { 0 } },
                     _ => panic!("do not reach"),
                 };
+                write_memory(ops, extra_memory, output, res);
                 done_operation = true;
             },
             _ => panic!("do not reach")
         }
         operation_step += 1;
         pc += 1;
-        //println!("pc: {:?}, op: {:?}, step: {:?}, mode1: {:?}, mode2: {:?}, mode3: {:?}, arg1: {:?}, arg2: {:?}", pc, op, operation_step, mode1, mode2, _mode3, arg1, arg2);
+        // println!("pc: {:?}, op: {:?}, step: {:?}, mode1: {:?}, mode2: {:?}, mode3: {:?}, arg1: {:?}, arg2: {:?}", pc, op, operation_step, mode1, mode2, _mode3, arg1, arg2);
     }
     if _calculation_result == IntcodeState::Suspend {
         pc -= 1; // getting from operation code for next execution
     }
-    (pc, _calculation_result)
+    (pc, _calculation_result, relative_base)
 }
 
 #[test]
@@ -140,21 +181,54 @@ fn test_operations() {
 
 #[test]
 fn test_execute() {
-    let mut input: Vec<i32> = vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9];
+    let mut input: Vec<i64> = vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9];
     let mut output = vec![];
-    let (_pc, _calculation_result) = execute(&mut input, &mut vec![0], &mut output, 0);
+    let (_pc, _calculation_result, _relative_base) = execute(&mut input, &mut vec![0], &mut output, 0, 0, &mut HashMap::new());
     assert_eq!(vec![0], output);
 }
 
 #[test]
 fn test_execute_with_suspend() {
-    let mut input: Vec<i32> = vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9];
+    let mut input: Vec<i64> = vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9];
     let mut output = vec![];
+    let mut extra_memory = HashMap::new();
     // no input
-    let (pc, calculation_result) = execute(&mut input, &mut vec![], &mut output, 0);
+    let (pc, calculation_result, relative_base) = execute(&mut input, &mut vec![], &mut output, 0, 0, &mut extra_memory);
     assert_eq!(IntcodeState::Suspend, calculation_result);
     // input zero
-    let (_pc, calculation_result) = execute(&mut input, &mut vec![0], &mut output, pc);
+    let (_pc, calculation_result, _relative_base) = execute(&mut input, &mut vec![0], &mut output, pc, relative_base, &mut extra_memory);
     assert_eq!(vec![0], output);
     assert_eq!(IntcodeState::Halt, calculation_result);
+}
+
+#[test]
+fn test_relative_mode() {
+    let mut ops: Vec<i64> = vec![109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99];
+    // do not use `ops.resize(10000, 0);`
+    let mut output = vec![];
+
+    execute(&mut ops, &mut vec![], &mut output, 0, 0, &mut HashMap::new());
+    assert_eq!(vec![0, 1, 1, 3, 0, 5, 0, 0, 0, 0, 109, 0, 109, 109, 109, 109], output);
+}
+
+#[test]
+fn test_should_output_16_digit_number() {
+    let mut ops: Vec<i64> = vec![1102,34915192,34915192,7,4,7,99,0];
+    let mut output = vec![];
+
+    execute(&mut ops, &mut vec![], &mut output, 0, 0, &mut HashMap::new());
+    assert_eq!(vec![1219070632396864], output);
+}
+
+#[test]
+fn test_should_output_a_large_number() {
+    let mut ops: Vec<i64> = vec![104,1125899906842624,99];
+    // ops.resize(1125899906842624, 0);
+    // `resize` caught the following
+    // intcode_computer-d7c77519a0090917(50756,0x7000100ef000) malloc: can't allocate region
+    // *** mach_vm_map(size=9007199254740992) failed (error code=3)
+    let mut output = vec![];
+
+    execute(&mut ops, &mut vec![], &mut output, 0, 0, &mut HashMap::new());
+    assert_eq!(vec![0], output);
 }

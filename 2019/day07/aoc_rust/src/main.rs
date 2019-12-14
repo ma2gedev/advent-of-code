@@ -1,9 +1,10 @@
 use std::fs;
+use std::collections::HashMap;
 use intcode_computer::{execute, IntcodeState};
 // use std::io;
 
 fn main() -> std::io::Result<()> {
-    let input: Vec<i32> = fs::read_to_string("../resources/input.txt")?
+    let input: Vec<i64> = fs::read_to_string("../resources/input.txt")?
         .trim().split(',').map(|op| op.parse().unwrap()).collect();
 
     // first
@@ -15,7 +16,8 @@ fn main() -> std::io::Result<()> {
             let mut ops = input.to_vec();
             let mut inputs = vec![phase, next_input];
             let mut outputs = vec![];
-            let (_pc, _intcode_state) = execute(&mut ops, &mut inputs, &mut outputs, 0);
+            let mut dummy_ex_memory = HashMap::new();
+            let (_pc, _intcode_state, _rb) = execute(&mut ops, &mut inputs, &mut outputs, 0, 0, &mut dummy_ex_memory);
             next_input = *outputs.last().unwrap();
         }
         if max_output < next_input {
@@ -36,8 +38,9 @@ fn main() -> std::io::Result<()> {
             input.to_vec(),
             input.to_vec(),
         ];
+        let mut dummy_ex_memory: HashMap<i64, i64> = HashMap::new();
         let mut pcs = vec![0, 0, 0, 0, 0];
-        let mut next_input = 0i32;
+        let mut next_input = 0i64;
         let mut latest_intcode_state = IntcodeState::Init;
         while latest_intcode_state != IntcodeState::Halt {
             for (i, phase) in combi.iter().enumerate() {
@@ -47,7 +50,7 @@ fn main() -> std::io::Result<()> {
                     vec![next_input]
                 };
                 let mut outputs = vec![];
-                let (pc, intcode_state) = execute(&mut opss[i], &mut inputs, &mut outputs, pcs[i]);
+                let (pc, intcode_state, _relative_base) = execute(&mut opss[i], &mut inputs, &mut outputs, pcs[i], 0, &mut dummy_ex_memory);
                 pcs[i] = pc;
                 latest_intcode_state = intcode_state;
                 next_input = *outputs.last().unwrap();
@@ -63,7 +66,7 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-fn combination(elements: &Vec<i32>) -> Vec<Vec<i32>> {
+fn combination(elements: &Vec<i64>) -> Vec<Vec<i64>> {
     let mut combinations = vec![];
     let mut i = 0;
     if elements.len() == 1 {
