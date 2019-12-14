@@ -23,6 +23,42 @@ fn main() -> std::io::Result<()> {
     }
     println!("max_output: {:?}", max_output);
 
+    // second
+    let combinations = combination(&vec![5, 6, 7, 8, 9]);
+    let mut max_output = -1;
+    for combi in combinations {
+        let mut first_loop = true;
+        let mut opss = vec![
+            input.to_vec(),
+            input.to_vec(),
+            input.to_vec(),
+            input.to_vec(),
+            input.to_vec(),
+        ];
+        let mut pcs = vec![0, 0, 0, 0, 0];
+        let mut next_input = 0i32;
+        let mut latest_intcode_state = IntcodeState::Init;
+        while latest_intcode_state != IntcodeState::Halt {
+            for (i, phase) in combi.iter().enumerate() {
+                let mut inputs = if first_loop {
+                    vec![*phase, next_input]
+                } else {
+                    vec![next_input]
+                };
+                let mut outputs = vec![];
+                let (pc, intcode_state) = execute(&mut opss[i], &mut inputs, &mut outputs, pcs[i]);
+                pcs[i] = pc;
+                latest_intcode_state = intcode_state;
+                next_input = *outputs.last().unwrap();
+            }
+            first_loop = false;
+        }
+        if max_output < next_input {
+            max_output = next_input;
+        }
+    }
+    println!("max_output: {:?}", max_output);
+
     Ok(())
 }
 
@@ -51,7 +87,6 @@ fn from_input(inputs: &mut Vec<i32>) -> Option<i32> {
 }
 
 fn output_to_memory(outputs: &mut Vec<i32>, value: i32) -> () {
-    println!("{:?}", value);
     outputs.push(value)
 }
 
@@ -168,7 +203,7 @@ fn combination(elements: &Vec<i32>) -> Vec<Vec<i32>> {
     for element in elements {
         let mut tmp_elements = elements.clone();
         tmp_elements.remove(i);
-        println!("{:?}", tmp_elements);
+        // println!("{:?}", tmp_elements);
         for mut right in combination(&tmp_elements) {
             right.insert(0, *element);
             combinations.push(right);
