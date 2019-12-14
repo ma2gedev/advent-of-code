@@ -43,11 +43,11 @@ fn read_value(ops: &Vec<i64>, extra_memory: &mut HashMap<i64, i64>, index: usize
     }
 }
 
-fn output_index(index: usize, relative_base: i64, mode: i64) -> usize {
+fn output_to(ops: &Vec<i64>, extra_memory: &mut HashMap<i64, i64>, index: usize, relative_base: i64, mode: i64) -> usize {
     if mode == 2 {
-        index + relative_base as usize
+        (relative_base + read_memory(ops, extra_memory, index)) as usize
     } else {
-        index
+        read_memory(ops, extra_memory, index) as usize
     }
 }
 
@@ -87,7 +87,7 @@ pub fn execute(ops: &mut Vec<i64>, inputs: &mut Vec<i64>, outputs: &mut Vec<i64>
     let mut done_operation = false;
     let mut mode1 = 0;
     let mut mode2 = 0;
-    let mut _mode3 = 0; // maybe unnecessary
+    let mut mode3 = 0; // maybe unnecessary
     let mut _calculation_result = IntcodeState::Init;
 
     loop {
@@ -103,14 +103,14 @@ pub fn execute(ops: &mut Vec<i64>, inputs: &mut Vec<i64>, outputs: &mut Vec<i64>
                 (parameter_mode3, parameter_mode2, parameter_mode1, o) => {
                     mode1 = parameter_mode1;
                     mode2 = parameter_mode2;
-                    _mode3 = parameter_mode3;
+                    mode3 = parameter_mode3;
                     op = o;
                 },
             },
             1 => match op {
                 1 | 2 | 5 | 6 | 7 | 8 => arg1 = read_value(ops, extra_memory, pc, relative_base, mode1),
                 3 => {
-                    let output = read_memory(ops, extra_memory, output_index(pc, relative_base, mode1)) as usize;
+                    let output = output_to(ops, extra_memory, pc, relative_base, mode1);
                     match from_input(inputs) {
                         Some(o) => write_memory(ops, extra_memory, output, o),
                         None => break _calculation_result = IntcodeState::Suspend,
@@ -118,12 +118,11 @@ pub fn execute(ops: &mut Vec<i64>, inputs: &mut Vec<i64>, outputs: &mut Vec<i64>
                     done_operation = true;
                 },
                 4 => {
-                    let output = read_memory(ops, extra_memory, output_index(pc, relative_base, mode1)) as usize;
-                    output_to_memory(outputs, read_memory(ops, extra_memory, output));
+                    output_to_memory(outputs, read_value(ops, extra_memory, pc, relative_base, mode1));
                     done_operation = true;
                 },
                 9 => {
-                    relative_base += read_memory(ops, extra_memory, pc);
+                    relative_base += read_value(ops, extra_memory, pc, relative_base, mode1);
                     done_operation = true;
                 }
                 _ => panic!("do not reach"),
@@ -149,7 +148,7 @@ pub fn execute(ops: &mut Vec<i64>, inputs: &mut Vec<i64>, outputs: &mut Vec<i64>
                 }
             },
             3 => {
-                let output = read_memory(ops, extra_memory, pc) as usize;
+                let output = output_to(ops, extra_memory, pc, relative_base, mode3);
                 let res = match op {
                     1 => { arg1 + arg2 },
                     2 => { arg1 * arg2 },
@@ -164,7 +163,7 @@ pub fn execute(ops: &mut Vec<i64>, inputs: &mut Vec<i64>, outputs: &mut Vec<i64>
         }
         operation_step += 1;
         pc += 1;
-        // println!("pc: {:?}, op: {:?}, step: {:?}, mode1: {:?}, mode2: {:?}, mode3: {:?}, arg1: {:?}, arg2: {:?}", pc, op, operation_step, mode1, mode2, _mode3, arg1, arg2);
+        // println!("pc: {:?}, relative_base: {:?}, op: {:?}, step: {:?}, mode1: {:?}, mode2: {:?}, mode3: {:?}, arg1: {:?}, arg2: {:?}", pc, relative_base, op, operation_step, mode1, mode2, mode3, arg1, arg2);
     }
     if _calculation_result == IntcodeState::Suspend {
         pc -= 1; // getting from operation code for next execution
@@ -208,7 +207,7 @@ fn test_relative_mode() {
     let mut output = vec![];
 
     execute(&mut ops, &mut vec![], &mut output, 0, 0, &mut HashMap::new());
-    assert_eq!(vec![0, 1, 1, 3, 0, 5, 0, 0, 0, 0, 109, 0, 109, 109, 109, 109], output);
+    assert_eq!(vec![109, 1, 204, -1, 1001, 100, 1, 100, 1008, 100, 16, 101, 1006, 101, 0, 99], output);
 }
 
 #[test]
@@ -230,5 +229,27 @@ fn test_should_output_a_large_number() {
     let mut output = vec![];
 
     execute(&mut ops, &mut vec![], &mut output, 0, 0, &mut HashMap::new());
+    assert_eq!(vec![1125899906842624], output);
+}
+
+#[test]
+fn test_day05_01() {
+    let mut ops: Vec<i64> = vec![1101,100,-1,4,0];
+    let mut output = vec![];
+
+    execute(&mut ops, &mut vec![], &mut output, 0, 0, &mut HashMap::new());
+    assert_eq!(vec![] as Vec<i64>, output);
+}
+
+#[test]
+fn test_day05_5678() {
+    let mut ops: Vec<i64> = vec![3,9,8,9,10,9,4,9,99,-1,8];
+    let mut output = vec![];
+    execute(&mut ops, &mut vec![8], &mut output, 0, 0, &mut HashMap::new());
+    assert_eq!(vec![1], output);
+
+    ops = vec![3,9,8,9,10,9,4,9,99,-1,8];
+    output = vec![];
+    execute(&mut ops, &mut vec![9], &mut output, 0, 0, &mut HashMap::new());
     assert_eq!(vec![0], output);
 }
