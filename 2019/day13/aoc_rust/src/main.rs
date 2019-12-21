@@ -40,28 +40,41 @@ fn main() -> std::io::Result<()> {
     println!("max x: {:?}, max y: {:?}, block count: {:?}", max_x, max_y, block_count);
 
     // second
-    let mut ops = input.to_vec();
-    ops[0] = 2;
-    ex_memory = HashMap::new();
-    pc = 0;
-    rb = 0;
-    let mut game_state = vec![0; (max_x * max_y + 1) as usize]; // last 1 is for score
+    let mut input_recorder: Vec<i64> = vec![];
     let mut inputs = vec![];
     loop {
-        outputs = vec![];
-        let (tmp_pc, intcode_state, tmp_rb) =
-            execute(&mut ops, &mut inputs, &mut outputs, pc, rb, &mut ex_memory);
-        pc = tmp_pc;
-        rb = tmp_rb;
-        // println!("pc: {:?}, state: {:?}, rb: {:?}, outputs len: {:?}", pc, intcode_state, rb, outputs.len());
-        update_game_state(&mut game_state, &outputs, max_x as usize, max_y as usize);
-        print_screen(&game_state, max_x as usize, max_y as usize, intcode_state == IntcodeState::Halt);
-        if intcode_state == IntcodeState::Halt {
-            println!("Game Over");
-            break;
+        let mut ops = input.to_vec();
+        ops[0] = 2;
+        ex_memory = HashMap::new();
+        pc = 0;
+        rb = 0;
+        let mut game_state = vec![0; (max_x * max_y + 1) as usize]; // last 1 is for score
+        loop {
+            outputs = vec![];
+            let (tmp_pc, intcode_state, tmp_rb) =
+                execute(&mut ops, &mut inputs, &mut outputs, pc, rb, &mut ex_memory);
+            pc = tmp_pc;
+            rb = tmp_rb;
+            // println!("pc: {:?}, state: {:?}, rb: {:?}, outputs len: {:?}", pc, intcode_state, rb, outputs.len());
+            update_game_state(&mut game_state, &outputs, max_x as usize, max_y as usize);
+            print_screen(&game_state, max_x as usize, max_y as usize, intcode_state == IntcodeState::Halt);
+            if intcode_state == IntcodeState::Halt {
+                println!("Game Over");
+                break;
+            }
+            inputs = vec![];
+            inputs.push(get_input());
+            input_recorder.push(*inputs.last().unwrap());
         }
-        inputs = vec![];
-        inputs.push(get_input());
+        println!("Try Next Game!");
+        if input_recorder.len() > 30 {
+            println!("latest inputs: {:?}", input_recorder);
+            // remove last 10 inputs
+            for i in 0..30 {
+                input_recorder.remove(input_recorder.len() - 1);
+            }
+            inputs = input_recorder.to_vec();
+        }
     }
 
     Ok(())
@@ -101,7 +114,11 @@ fn print_screen(game_state: &Vec<i64>, max_x: usize, max_y: usize, last: bool) {
         println!("{:?}", str.join(""));
     }
     println!("score: {:?}", game_state[max_x * max_y]);
-    if !last { print!("\x1B[{:?}A", max_y + 2) }; // paint same region
+    if !last {
+        print!("\x1B[{:?}A", max_y + 2); // paint same region
+    } else {
+        print!("\x1B[{:?}B", 2); // paint next region
+    };
 }
 
 fn get_input() -> i64 {
