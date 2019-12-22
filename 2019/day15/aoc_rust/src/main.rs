@@ -19,6 +19,12 @@ impl Node {
         if min > min_v { min_v } else { min }
     }
 
+    fn find_max_count(&self) -> i32 {
+        let max = self.count;
+        let max_v = self.nodes.iter().map(|n| n.find_max_count()).max().unwrap_or(0);
+        if max > max_v { max } else { max_v }
+    }
+
     fn create_root() -> Node {
         Node {
             done: false,
@@ -37,9 +43,35 @@ impl Node {
         }
     }
 
+    fn change_intcode_initial_position(intcode: &mut IntcodeComputer, from: i64) -> bool{
+        let mut outputs = vec![];
+        let mut find = false;
+        for direction in 1..=4 {
+            if from != direction {
+                intcode.execute(&mut vec![direction], &mut outputs);
+                match outputs.last().unwrap() {
+                    0 => (), // do nothing
+                    1 => {
+                        find = Node::change_intcode_initial_position(intcode, Node::OPOSIT_DIR[direction as usize]);
+                        if find { break; }
+                        // put back droid
+                        intcode.execute(&mut vec![Node::OPOSIT_DIR[direction as usize]], &mut outputs);
+                    },
+                    2 => {
+                        find = true;
+                        break;
+                    },
+                    _ => panic!("do not reach"),
+                }
+            }
+        }
+        find
+    }
+
+    const OPOSIT_DIR: [i64; 5] = [0, 2, 1, 4, 3];
+
     // from: 0 is root, 1: north, 2: south, 3: west, 4: east
     fn find_target(&mut self, intcode: &mut IntcodeComputer, from: i64) {
-        const OPOSIT_DIR: [i64; 5] = [0, 2, 1, 4, 3];
         let mut outputs = vec![];
         for direction in 1..=4 {
             if from != direction {
@@ -48,10 +80,10 @@ impl Node {
                     0 => (), // do nothing
                     1 => {
                         let mut node = Node::create_node(&self);
-                        node.find_target(intcode, OPOSIT_DIR[direction as usize]);
+                        node.find_target(intcode, Node::OPOSIT_DIR[direction as usize]);
                         self.nodes.push(node);
                         // put back droid
-                        intcode.execute(&mut vec![OPOSIT_DIR[direction as usize]], &mut outputs);
+                        intcode.execute(&mut vec![Node::OPOSIT_DIR[direction as usize]], &mut outputs);
                     },
                     2 => {
                         let mut node = Node::create_node(&self);
@@ -59,7 +91,7 @@ impl Node {
                         node.done = true;
                         self.nodes.push(node);
                         // put back droid
-                        intcode.execute(&mut vec![OPOSIT_DIR[direction as usize]], &mut outputs);
+                        intcode.execute(&mut vec![Node::OPOSIT_DIR[direction as usize]], &mut outputs);
                     },
                     _ => panic!("do not reach"),
                 }
@@ -79,5 +111,12 @@ fn main() -> std::io::Result<()> {
     root_node.find_target(&mut intcode, 0);
     println!("first: {:?}", root_node.find_min_count());
     // println!("first: {:?}", root_node);
+
+    // second
+    intcode = IntcodeComputer::new(&input, 0, 0);
+    Node::change_intcode_initial_position(&mut intcode, 0);
+    root_node = Node::create_root();
+    root_node.find_target(&mut intcode, 0);
+    println!("second: {:?}", root_node.find_max_count());
     Ok(())
 }
