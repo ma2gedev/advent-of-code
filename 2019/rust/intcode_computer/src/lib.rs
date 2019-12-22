@@ -70,11 +70,40 @@ fn write_memory(ops: &mut Vec<i64>, extra_memory: &mut HashMap<i64, i64>, index:
     }
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Copy, Clone)]
 pub enum IntcodeState {
     Init,
     Halt,
     Suspend,
+}
+
+#[derive(Debug)]
+pub struct IntcodeComputer {
+    ops: Vec<i64>,
+    pc: usize,
+    relative_base: i64,
+    extra_memory: HashMap<i64, i64>,
+    state: IntcodeState,
+}
+
+impl IntcodeComputer {
+    pub fn new(ops: &Vec<i64>, pc: usize, relative_base: i64) -> IntcodeComputer {
+        IntcodeComputer {
+            ops: ops.to_vec(),
+            pc: pc,
+            relative_base: relative_base,
+            extra_memory: HashMap::new(),
+            state: IntcodeState::Init,
+        }
+    }
+
+    pub fn execute(&mut self, inputs: &mut Vec<i64>, outputs: &mut Vec<i64>) -> IntcodeState {
+        let (pc, intcode_state, rb) = execute(&mut self.ops, inputs, outputs, self.pc, self.relative_base, &mut self.extra_memory);
+        self.pc = pc;
+        self.relative_base = rb;
+        self.state = intcode_state;
+        intcode_state
+    }
 }
 
 pub fn execute(ops: &mut Vec<i64>, inputs: &mut Vec<i64>, outputs: &mut Vec<i64>, pc: usize, relative_base: i64, extra_memory: &mut HashMap<i64, i64>) -> (usize, IntcodeState, i64) {
@@ -196,6 +225,20 @@ fn test_execute_with_suspend() {
     assert_eq!(IntcodeState::Suspend, calculation_result);
     // input zero
     let (_pc, calculation_result, _relative_base) = execute(&mut input, &mut vec![0], &mut output, pc, relative_base, &mut extra_memory);
+    assert_eq!(vec![0], output);
+    assert_eq!(IntcodeState::Halt, calculation_result);
+}
+
+#[test]
+fn test_execute_with_suspend_struct() {
+    let input: Vec<i64> = vec![3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9];
+    let mut output = vec![];
+    let mut intcode_computer = IntcodeComputer::new(&input, 0, 0);
+    // no input
+    let calculation_result = intcode_computer.execute(&mut vec![], &mut output);
+    assert_eq!(IntcodeState::Suspend, calculation_result);
+    // input zero
+    let calculation_result = intcode_computer.execute(&mut vec![0], &mut output);
     assert_eq!(vec![0], output);
     assert_eq!(IntcodeState::Halt, calculation_result);
 }
