@@ -49,7 +49,7 @@ input = File.read('../resources/input.txt')
 #EOS
 # expect 2210736
 
-hash = {}
+orig_hash = {}
 
 input.lines.map do |x|
   y, z = x.strip.split(' => ')
@@ -60,8 +60,9 @@ input.lines.map do |x|
     ore = name == 'ORE'
     { name: name, need_unit: need_unit.to_i }
   end
-  hash[key] = { unit: unit.to_i, ore: ore, patterns: patterns, used: key == 'FUEL' ? true : false }
+  orig_hash[key] = { unit: unit.to_i, ore: ore, patterns: patterns, used: key == 'FUEL' ? true : false }
 end
+ore_keys = orig_hash.filter {|k, v| v[:ore]}.map {|k, _| k}
 
 def contains_only_fuel?(pattern_name, hash_map)
   hash_map
@@ -91,7 +92,8 @@ def replace(pattern, hash_map, used_keys, index)
   pat[:patterns].map { |p| pp = p.dup; pp[:need_unit] = p[:need_unit] * mul; pp }
 end
 
-ore_keys = hash.filter {|k, v| v[:ore]}.map {|k, _| k}
+# first
+hash = Marshal.load(Marshal.dump(orig_hash))
 index = 0
 used_keys = []
 patterns = hash['FUEL'][:patterns]
@@ -109,15 +111,69 @@ loop do
   index += 1
 end
 
-value = patterns.map do |p|
+first_answer = patterns.map do |p|
   pat = hash[p[:name]]
   mul = if p[:need_unit] % pat[:unit] == 0
     p[:need_unit] / pat[:unit]
   else
     p[:need_unit] / pat[:unit] + 1
   end
+  # puts "#{pat[:patterns].first[:name]}: #{pat[:patterns].first[:need_unit] * mul}"
   pat[:patterns].first[:need_unit] * mul
 end.sum
 
-puts "first: #{value}"
+puts "first: #{first_answer}"
 
+
+# second
+TRILLION = 1000000000000
+low_fuel = TRILLION / first_answer
+high_fuel = TRILLION
+latest_fuel = 0
+
+loop do
+  hash = Marshal.load(Marshal.dump(orig_hash))
+  index = 0
+  used_keys = []
+  latest_fuel = (low_fuel + high_fuel) / 2
+  patterns = hash['FUEL'][:patterns].map { |p| p[:need_unit] *= latest_fuel; p }
+  loop do
+    replaced_array = patterns.map { |p| replace(p, hash, used_keys, index) }.flatten
+    # puts (" " * index) + "#{replaced_array}"
+    used_keys.each do |k|
+      hash[k][:used] = true # mark as used pattern
+    end
+    patterns = replaced_array.group_by {|i| i[:name]}.map do |k, v|
+      { name: k, need_unit: v.reduce(0) {|acc, vv| acc + vv[:need_unit]}}
+    end
+    # puts (" " * index) + "#{patterns}"
+    break if patterns.all? {|p| ore_keys.include?(p[:name])}
+    index += 1
+  end
+
+  value = patterns.map do |p|
+    pat = hash[p[:name]]
+    mul = if p[:need_unit] % pat[:unit] == 0
+      p[:need_unit] / pat[:unit]
+    else
+      p[:need_unit] / pat[:unit] + 1
+    end
+    # puts "#{pat[:patterns].first[:name]}: #{pat[:patterns].first[:need_unit] * mul}"
+    pat[:patterns].first[:need_unit] * mul
+  end.sum
+
+  # puts latest_fuel
+  break if value == TRILLION
+  if high_fuel == low_fuel
+    latest_fuel -= 1 if value > TRILLION
+    break
+  end
+
+  if value > TRILLION
+    high_fuel = latest_fuel - 1
+  else
+    low_fuel = latest_fuel + 1
+  end
+end
+
+puts "second: #{latest_fuel}"
